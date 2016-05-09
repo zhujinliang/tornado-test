@@ -48,10 +48,12 @@ $(document).ready(function() {
 });
 
 function requestInventory() {
-    $.getJSON('http://127.0.0.1:8000/cart/status', {session: document.session},
-        function(data, status, xhr) {
-            $('#count').html(data['inventoryCount']);
-            setTimeout(requestInventory, 0.1);
-        }
-    );
+    var host = 'ws://127.0.0.1:8000/cart/status';
+    var websocket = new WebSocket(host);
+    websocket.onopen = function(event) {};
+    websocket.onmessage = function(event) {
+        var data = $.parseJSON(event.data);
+        $('#count').html(data['inventoryCount']);
+    };
+    websocket.onerror = function(event) {};
 }

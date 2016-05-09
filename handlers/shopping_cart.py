@@ -3,6 +3,7 @@
 from uuid import uuid4
 from tornado.web import asynchronous
 from tornado.web import RequestHandler
+from tornado.websocket import WebSocketHandler
 from handlers.base import TemplateHandler
 
 
@@ -13,6 +14,9 @@ class ShoppingCart(object):
 
     def register(self, callback):
         self.callbacks.append(callback)
+
+    def unregister(self, callback):
+        self.callbacks.remove(callback)
 
     def move_item_to_cart(self, session):
         if session in self.carts:
@@ -29,13 +33,8 @@ class ShoppingCart(object):
         self.notify_callbacks()
 
     def notify_callbacks(self):
-        for c in self.callbacks:
-            self.callback_helper(c)
-
-        self.callbacks = []
-
-    def callback_helper(self, callback):
-        callback(self.get_inventory_count())
+        for callback in self.callbacks:
+            callback(self.get_inventory_count())
 
     def get_inventory_count(self):
         return self.total_inventory - len(self.carts)
@@ -71,12 +70,18 @@ class CartHandler(RequestHandler):
             self.set_status(400)
 
 
-class StatusHandler(RequestHandler):
-    @asynchronous
-    def get(self):
-        self.application.shopping_cart.register(self.on_message)
+class StatusHandler(WebSocketHandler):
+    def open(self):
+        self.application.shopping_cart.register(self.callback)
 
-    def on_message(self, count):
-        self.write('{"inventoryCount": "%d"}' % count)
-        self.finish()
+    def on_close(self):
+        self.application.shopping_cart.unregister(self.callback)
+
+    def on_message(self):
+        pass
+
+    def callback(self, count):
+        print 'Send message to websocket!'
+        self.write_message('{"inventoryCount": "%d"}' % count)
+
 
